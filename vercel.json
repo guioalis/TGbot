@@ -2,19 +2,22 @@
     "version": 2,
     "builds": [
         {
-            "src": "main.py",
+            "src": "api/vercel.py",
             "use": "@vercel/python"
         }
     ],
     "routes": [
         {
-            "src": "/api/webhook",
-            "methods": ["POST"],
-            "dest": "main.py"
+            "src": "/static/(.*)",
+            "dest": "/static/$1"
+        },
+        {
+            "src": "/api/(.*)",
+            "dest": "/api/vercel.py"
         },
         {
             "src": "/(.*)",
-            "dest": "main.py"
+            "dest": "/api/vercel.py"
         }
     ],
     "env": {

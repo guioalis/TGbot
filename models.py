@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, List, Any
 import logging
 
 logger = logging.getLogger(__name__)
@@ -10,6 +10,7 @@ class Storage:
         # 使用内存存储
         self._groups = {}
         self._banned = []
+        self.start_time = datetime.utcnow()
     
     def get_group(self, chat_id: int) -> dict:
         return self._groups.get(str(chat_id), {})
@@ -45,6 +46,14 @@ class Storage:
     def get_timestamp(self) -> str:
         """获取当前时间戳"""
         return datetime.utcnow().isoformat()
+
+    def update_ai_config(self, config: Dict[str, Any]):
+        """更新AI配置"""
+        self.ai_config.update(config)
+
+    def get_uptime(self) -> str:
+        """获取系统运行时间"""
+        return (datetime.utcnow() - self.start_time).total_seconds()
 
 # 创建全局存储实例
 storage = Storage() 
