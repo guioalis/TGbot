@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  bot:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: miao-bot
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_API_URL=${GEMINI_API_URL}
+      - ADMIN_IDS=${ADMIN_IDS}
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3" 
