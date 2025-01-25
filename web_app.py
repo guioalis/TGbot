@@ -1,23 +1,20 @@
-from flask import Flask, render_template, jsonify, request, abort
+from flask import Flask, render_template, jsonify, request, Response
 from telegram import Update, ChatPermissions, BotCommand
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from telegram.error import TelegramError
-from models import Group, BannedUser, Session
 import os
 from dotenv import load_dotenv
 import requests
 import json
 from datetime import datetime, timedelta
 import asyncio
-import threading
 import logging
 from functools import wraps
+from api.bot import webhook_handler
+from models import storage
 
 # 配置日志
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # 加载环境变量
@@ -30,7 +27,6 @@ GEMINI_API_URL = os.getenv('GEMINI_API_URL')
 ADMIN_IDS = list(map(int, os.getenv('ADMIN_IDS', '').split(',')))  # 管理员ID列表
 
 app = Flask(__name__)
-db = Session()
 
 # 装饰器：检查是否是管理员
 def admin_required(f):
@@ -116,7 +112,7 @@ AI功能：
 def index():
     """渲染管理界面"""
     try:
-        groups = db.query(Group).all()
+        groups = storage.get_all_groups()
         return render_template('index.html', groups=groups)
     except Exception as e:
         logger.error(f"Error in index route: {str(e)}")
@@ -126,16 +122,8 @@ def index():
 def get_groups():
     """获取群组列表"""
     try:
-        groups = db.query(Group).all()
-        return jsonify([{
-            'chat_id': g.chat_id,
-            'title': g.title,
-            'ai_enabled': g.ai_enabled,
-            'welcome_message': g.welcome_message,
-            'auto_delete_time': g.auto_delete_time,
-            'ai_config': g.ai_config,
-            'created_at': g.created_at.isoformat()
-        } for g in groups])
+        groups = storage.get_all_groups()
+        return jsonify(groups)
     except Exception as e:
         logger.error(f"Error in get_groups: {str(e)}")
         return jsonify({"error": "Failed to fetch groups"}), 500
@@ -145,18 +133,9 @@ def update_group(chat_id):
     """更新群组设置"""
     try:
         data = request.json
-        group = db.query(Group).filter_by(chat_id=chat_id).first()
-        if not group:
-            return jsonify({"error": "Group not found"}), 404
-        
-        for key, value in data.items():
-            if hasattr(group, key):
-                setattr(group, key, value)
-        
-        db.commit()
+        storage.save_group(chat_id, data)
         return jsonify({"status": "success"})
     except Exception as e:
-        db.rollback()
         logger.error(f"Error in update_group: {str(e)}")
         return jsonify({"error": "Failed to update group"}), 500
 
@@ -164,13 +143,9 @@ def update_group(chat_id):
 def get_banned_users():
     """获取被禁言用户列表"""
     try:
-        banned = db.query(BannedUser).all()
-        return jsonify([{
-            'chat_id': b.chat_id,
-            'user_id': b.user_id,
-            'banned_until': b.banned_until.isoformat(),
-            'reason': b.reason
-        } for b in banned])
+        storage.remove_expired_bans()  # 清理过期的禁言
+        banned = storage.get_banned_users()
+        return jsonify(banned)
     except Exception as e:
         logger.error(f"Error in get_banned_users: {str(e)}")
         return jsonify({"error": "Failed to fetch banned users"}), 500
@@ -179,12 +154,13 @@ def get_banned_users():
 def health_check():
     """健康检查端点"""
     try:
-        # 测试数据库连接
-        db.execute("SELECT 1")
+        # 检查存储是否可用
+        storage.get_all_groups()
         return jsonify({
             "status": "healthy",
-            "database": "connected",
-            "timestamp": datetime.utcnow().isoformat()
+            "storage": "connected",
+            "timestamp": datetime.utcnow().isoformat(),
+            "environment": "vercel" if os.getenv('VERCEL') else 'local'
         })
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
@@ -194,44 +170,12 @@ def health_check():
             "timestamp": datetime.utcnow().isoformat()
         }), 500
 
-def run_bot():
-    """在单独的线程中运行机器人"""
-    async def main():
-        try:
-            application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-            
-            # 设置命令列表
-            await setup_commands(application)
-            
-            # 添加处理器
-            application.add_handler(CommandHandler("start", start))
-            application.add_handler(CommandHandler("help", help))
-            application.add_handler(CommandHandler("enable_ai", enable_ai))
-            application.add_handler(CommandHandler("disable_ai", disable_ai))
-            application.add_handler(CommandHandler("setup", setup_group))
-            application.add_handler(CommandHandler("setwelcome", set_welcome))
-            application.add_handler(CommandHandler("ban", ban_user))
-            application.add_handler(CommandHandler("delete", delete_message))
-            application.add_handler(CommandHandler("set_ai_config", set_ai_config))
-            application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-            application.add_handler(MessageHandler(filters.ALL, auto_delete_handler))
-            
-            logger.info("Bot started successfully")
-            await application.initialize()
-            await application.start()
-            await application.run_polling()
-        except Exception as e:
-            logger.error(f"Error starting bot: {str(e)}")
-            raise
-
-    asyncio.run(main())
+# Webhook 路由
+@app.route('/api/webhook', methods=['POST'])
+def telegram_webhook():
+    """处理 Telegram webhook"""
+    return webhook_handler(request)
 
 if __name__ == '__main__':
-    # 在单独的线程中启动机器人
-    bot_thread = threading.Thread(target=run_bot)
-    bot_thread.daemon = True
-    bot_thread.start()
-    
-    # 启动Flask应用
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port) 
