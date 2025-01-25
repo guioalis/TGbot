@@ -6,7 +6,8 @@
             "use": "@vercel/python",
             "config": {
                 "runtime": "python3.9",
-                "maxLambdaSize": "15mb"
+                "maxLambdaSize": "15mb",
+                "installCommand": "pip install -r requirements-vercel.txt"
             }
         }
     ],
@@ -30,6 +31,7 @@
     "env": {
         "PYTHONUNBUFFERED": "1",
         "PYTHON_VERSION": "3.9",
-        "LOG_LEVEL": "info"
+        "LOG_LEVEL": "info",
+        "REQUIREMENTS_FILE": "requirements-vercel.txt"
     }
 } 
