@@ -1,18 +1,23 @@
 import logging
 from functools import wraps
 from fastapi import HTTPException
-from typing import Callable
+from typing import Callable, Any
+from utils.logger import logger
 
 logger = logging.getLogger(__name__)
 
-def handle_errors(func: Callable):
+def handle_errors(func: Callable) -> Callable:
     """错误处理装饰器"""
     @wraps(func)
-    async def wrapper(*args, **kwargs):
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return await func(*args, **kwargs)
+        except HTTPException:
+            # 直接重新抛出 HTTP 异常
+            raise
         except Exception as e:
-            logger.error(f"Error in {func.__name__}: {str(e)}")
+            # 记录错误并转换为 HTTP 异常
+            logger.error(f"Error in {func.__name__}: {str(e)}", exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
     return wrapper
 
@@ -26,4 +31,16 @@ def format_uptime(seconds: float) -> str:
     days = int(seconds // 86400)
     hours = int((seconds % 86400) // 3600)
     minutes = int((seconds % 3600) // 60)
-    return f"{days}天 {hours}小时 {minutes}分钟" 
+    return f"{days}天 {hours}小时 {minutes}分钟"
+
+def validate_request(func: Callable) -> Callable:
+    """请求验证装饰器"""
+    @wraps(func)
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+        try:
+            # 在这里添加请求验证逻辑
+            return await func(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"Validation error in {func.__name__}: {str(e)}")
+            raise HTTPException(status_code=400, detail=str(e))
+    return wrapper 
