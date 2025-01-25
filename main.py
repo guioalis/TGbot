@@ -1,8 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from api.routes import router as api_router
-from api.bot import telegram_app
+from api import router as api_router
 from utils.config import config
 import logging
 
@@ -13,11 +12,15 @@ logging.basicConfig(
 )
 
 # 创建应用
-app = FastAPI(title="喵哥AI群管机器人")
+app = FastAPI(
+    title="喵哥AI群管机器人",
+    description="Telegram群管理机器人，集成AI对话功能",
+    version="1.0.0"
+)
 
 # 挂载静态文件和模板
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory=config.STATIC_DIR), name="static")
+templates = Jinja2Templates(directory=config.TEMPLATE_DIR)
 
 # 添加API路由
 app.include_router(api_router, prefix="/api")

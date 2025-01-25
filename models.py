@@ -1,21 +1,23 @@
 import json
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 import logging
+from utils.config import config
 
 logger = logging.getLogger(__name__)
 
 class Storage:
     def __init__(self):
         # 使用内存存储
-        self._groups = {}
-        self._banned = []
-        self.start_time = datetime.utcnow()
+        self._groups: Dict[str, Dict[str, Any]] = {}
+        self._banned: List[Dict[str, Any]] = []
+        self.start_time: datetime = datetime.utcnow()
+        self.ai_config: Dict[str, Any] = config.DEFAULT_AI_CONFIG.copy()
     
-    def get_group(self, chat_id: int) -> dict:
+    def get_group(self, chat_id: int) -> Dict[str, Any]:
         return self._groups.get(str(chat_id), {})
     
-    def save_group(self, chat_id: int, data: dict):
+    def save_group(self, chat_id: int, data: Dict[str, Any]) -> None:
         self._groups[str(chat_id)] = data
     
     def get_all_groups(self) -> List[dict]:

@@ -5,6 +5,8 @@ import os
 import logging
 import asyncio
 from models import storage
+from utils.config import config
+from utils.helpers import handle_errors, validate_admin
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -16,8 +18,9 @@ TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 # 创建全局 Application 实例
 application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
+@handle_errors
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('喵哥AI群管机器人已启动！使用 /help 查看命令列表。')
+    await update.message.reply_text('👋 喵哥AI群管机器人已启动！使用 /help 查看命令列表。')
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = """
@@ -56,11 +59,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('收到消息！')
 
 # 初始化处理器
-application.add_handler(CommandHandler("start", start_command))
-application.add_handler(CommandHandler("help", help_command))
-application.add_handler(CommandHandler("enable_ai", enable_ai_command))
-application.add_handler(CommandHandler("disable_ai", disable_ai_command))
-application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+def init_handlers():
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("enable_ai", enable_ai_command))
+    application.add_handler(CommandHandler("disable_ai", disable_ai_command))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+init_handlers()
 
 async def process_update(update_data: dict):
     """处理更新"""
