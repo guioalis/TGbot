@@ -2,7 +2,7 @@
     "version": 2,
     "builds": [
         {
-            "src": "web_app.py",
+            "src": "main.py",
             "use": "@vercel/python"
         }
     ],
@@ -10,11 +10,11 @@
         {
             "src": "/api/webhook",
             "methods": ["POST"],
-            "dest": "web_app.py"
+            "dest": "main.py"
         },
         {
             "src": "/(.*)",
-            "dest": "web_app.py"
+            "dest": "main.py"
         }
     ],
     "env": {

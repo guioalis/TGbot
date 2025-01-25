@@ -42,5 +42,9 @@ class Storage:
             if ban["banned_until"] > current_time
         ]
 
+    def get_timestamp(self) -> str:
+        """获取当前时间戳"""
+        return datetime.utcnow().isoformat()
+
 # 创建全局存储实例
 storage = Storage() 
