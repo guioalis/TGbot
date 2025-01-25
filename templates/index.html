@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>喵哥AI群管机器人 - 管理面板</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .group-card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+    </style>
+</head>
+<body>
+    <h1>喵哥AI群管机器人 - 管理面板</h1>
+    
+    <div class="tabs">
+        <button onclick="showTab('groups')">群组管理</button>
+        <button onclick="showTab('banned')">封禁列表</button>
+    </div>
+    
+    <div id="groups" class="tab-content">
+        <!-- 群组列表 -->
+    </div>
+    
+    <div id="banned" class="tab-content" style="display:none">
+        <!-- 封禁用户列表 -->
+    </div>
+
+    <script>
+        function updateGroups() {
+            fetch('/api/groups')
+                .then(response => response.json())
+                .then(groups => {
+                    const groupsDiv = document.getElementById('groups');
+                    groupsDiv.innerHTML = '';
+                    
+                    for (const [chatId, settings] of Object.entries(groups)) {
+                        const card = document.createElement('div');
+                        card.className = 'group-card';
+                        
+                        const title = document.createElement('h3');
+                        title.textContent = `群组 ID: ${chatId}`;
+                        
+                        const toggle = document.createElement('label');
+                        toggle.className = 'switch';
+                        toggle.innerHTML = `
+                            <input type="checkbox" 
+                                   ${settings.ai_enabled ? 'checked' : ''} 
+                                   onchange="updateGroupSettings(${chatId}, this.checked)">
+                            <span class="slider"></span>
+                        `;
+                        
+                        card.appendChild(title);
+                        card.appendChild(toggle);
+                        groupsDiv.appendChild(card);
+                    }
+                });
+        }
+
+        function updateGroupSettings(chatId, enabled) {
+            fetch(`/api/groups/${chatId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    ai_enabled: enabled
+                })
+            }).then(() => updateGroups());
+        }
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
+            document.getElementById(tabName).style.display = 'block';
+            
+            if (tabName === 'banned') {
+                updateBannedList();
+            } else {
+                updateGroups();
+            }
+        }
+        
+        function updateBannedList() {
+            fetch('/api/banned_users')
+                .then(response => response.json())
+                .then(users => {
+                    const bannedDiv = document.getElementById('banned');
+                    bannedDiv.innerHTML = '<h2>被封禁用户</h2>';
+                    
+                    users.forEach(user => {
+                        const card = document.createElement('div');
+                        card.className = 'banned-card';
+                        card.innerHTML = `
+                            <p>用户ID: ${user.user_id}</p>
+                            <p>群组ID: ${user.chat_id}</p>
+                            <p>封禁至: ${new Date(user.banned_until).toLocaleString()}</p>
+                            <p>原因: ${user.reason}</p>
+                        `;
+                        bannedDiv.appendChild(card);
+                    });
+                });
+        }
+        
+        // 初始加载
+        showTab('groups');
+    </script>
+</body>
+</html> 
