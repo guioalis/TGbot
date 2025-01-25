@@ -1,15 +1,14 @@
+import os
+import sys
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from api import router as api_router
 from utils.config import config
-import logging
+from utils.logger import logger
 
 # 配置日志
-logging.basicConfig(
-    level=logging.DEBUG if config.DEBUG else logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logger.info("Starting application...")
 
 # 创建应用
 app = FastAPI(
@@ -18,24 +17,24 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# 挂载静态文件和模板
-app.mount("/static", StaticFiles(directory=config.STATIC_DIR), name="static")
-templates = Jinja2Templates(directory=config.TEMPLATE_DIR)
+# 在生产环境中禁用静态文件服务
+if not config.IS_VERCEL:
+    app.mount("/static", StaticFiles(directory=config.STATIC_DIR), name="static")
+    templates = Jinja2Templates(directory=config.TEMPLATE_DIR)
 
 # 添加API路由
 app.include_router(api_router, prefix="/api")
 
 @app.get("/")
-async def index(request: Request):
-    """渲染管理界面"""
-    return templates.TemplateResponse("index.html", {"request": request})
+async def index():
+    """健康检查"""
+    return {"status": "healthy"}
 
 @app.get("/health")
 async def health_check():
     """健康检查"""
-    from models import storage
     return {
         "status": "healthy",
         "environment": "vercel" if config.IS_VERCEL else "local",
-        "timestamp": storage.get_timestamp()
+        "timestamp": config.get_timestamp()
     } 
